@@ -6,51 +6,63 @@
  * Licensed under the MIT license.
  * Copyright 2013 Luís Almeida
  * https://github.com/luis-almeida
+ *
+ * Changelog
+ * 2016-04-06 - Fixed webkit issues - https://github.com/firewizard/unveil
  */
 
-;(function($) {
+;
+(function ($) {
 
-  $.fn.unveil = function(threshold, callback) {
+    $.fn.unveil = function (threshold, callback) {
 
-    var $w = $(window),
-        th = threshold || 0,
-        retina = window.devicePixelRatio > 1,
-        attrib = retina? "data-src-retina" : "data-src",
-        images = this,
-        loaded;
+        var $w = $(window),
+            th = threshold || 0,
+            retina = window.devicePixelRatio > 1,
+            attrib = retina ? "data-src-retina" : "data-src",
+            images = this,
+            loaded;
 
-    this.one("unveil", function() {
-      var source = this.getAttribute(attrib);
-      source = source || this.getAttribute("data-src");
-      if (source) {
-        this.setAttribute("src", source);
-        if (typeof callback === "function") callback.call(this);
-      }
-    });
+        this.one("unveil", function () {
+            var source = this.getAttribute(attrib),
+                $t = $(this);
+            source = source || this.getAttribute("data-src");
+            if (source) {
+                $t.fadeOut(0);
+                this.setAttribute("src", source);
+                this.onload = function () {
+                    $t.fadeIn();
+                }
+                if (typeof callback === "function") callback.call(this);
+            }
+        });
 
-    function unveil() {
-      var inview = images.filter(function() {
-        var $e = $(this);
-        if ($e.is(":hidden")) return;
+        function unveil() {
+            var inview = images.filter(function () {
+                var $e = $(this);
+                if ($e.is(":hidden")) return;
 
-        var wt = $w.scrollTop(),
-            wb = wt + $w.height(),
-            et = $e.offset().top,
-            eb = et + $e.height();
+                var rect = this.getBoundingClientRect(),
+                    et = rect.top,
+                    eb = rect.bottom,
+                    wh = $w.height();
 
-        return eb >= wt - th && et <= wb + th;
-      });
+                return eb >= 0 - th && et <= wh + th;
+            });
 
-      loaded = inview.trigger("unveil");
-      images = images.not(loaded);
-    }
+            loaded = inview.trigger("unveil");
+            images = images.not(loaded);
+        }
 
-    $w.on("scroll.unveil resize.unveil lookup.unveil", unveil);
+        $w.on("scroll.unveil resize.unveil lookup.unveil", unveil);
 
-    unveil();
+        //webkit seems to have the heights ready only when the load event has been triggered
+        navigator.userAgent.match(/webkit/i) && $w.on('load', unveil);
 
-    return this;
+        unveil();
 
-  };
+        return this;
+
+    };
 
 })(window.jQuery || window.Zepto);
